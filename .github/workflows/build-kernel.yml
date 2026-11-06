@@ -77,6 +77,14 @@ jobs:
             git clone --depth=1 https://github.com/ametoxg/a12s_kernel.git -b main kernel_src
           fi
 
+          echo "==> Linking toolchain and patching hardcoded compiler paths..."
+          mkdir -p kernel_src/toolchain/clang/host/linux-x86
+          ln -sfn "$GITHUB_WORKSPACE/toolchain/clang" kernel_src/toolchain/clang/host/linux-x86/clang-r353983c
+          
+          # Neutralize hardcoded Makefile paths to allow using our modern Clang
+          sed -i 's|^CC\s*=.*clang-r353983c.*|CC ?= clang|' kernel_src/Makefile || true
+          sed -i 's|^CLANG_TRIPLE\s*?=.*clang-r353983c.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
+
       - name: Integrate KernelSU-Next & Defconfig Optimizations
         run: |
           chmod +x scripts/*.sh || true

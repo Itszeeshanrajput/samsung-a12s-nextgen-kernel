@@ -10,27 +10,25 @@ cd "$KERNEL_DIR"
 
 echo "[*] Setting up KernelSU-Next / KernelSU in $KERNEL_DIR..."
 
-if [ ! -d "drivers/kernelsu" ] && [ ! -d "KernelSU" ]; then
-    echo "[+] Fetching KernelSU-Next..."
-    # Support both KernelSU-Next and upstream KernelSU fallback
-    if curl -sSf "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next; then
-        echo "[✓] KernelSU-Next successfully cloned and linked."
-    else
-        echo "[!] KernelSU-Next fetch failed, attempting upstream KernelSU..."
-        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
-        echo "[✓] Upstream KernelSU linked."
+mkdir -p drivers/kernelsu
+
+if [ ! -f "drivers/kernelsu/Kconfig" ]; then
+    echo "[+] Fetching KernelSU-Next into drivers/kernelsu..."
+    if ! git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git -b next drivers/kernelsu 2>/dev/null; then
+        echo "[!] Fallback to upstream KernelSU..."
+        git clone --depth=1 https://github.com/tiann/KernelSU.git drivers/kernelsu
     fi
+    echo "[✓] KernelSU cloned into drivers/kernelsu."
+fi
+
+# Ensure drivers/Makefile includes kernelsu
+if grep -q "CONFIG_KSU" drivers/Makefile 2>/dev/null; then
+    echo "[*] drivers/Makefile already configured for KSU."
 else
-    echo "[*] KernelSU directory already present, updating..."
-    if [ -d "KernelSU" ]; then
-        cd KernelSU && git pull && cd ..
-    elif [ -d "drivers/kernelsu" ]; then
-        cd drivers/kernelsu && git pull && cd ..
-    fi
+    echo "obj-\$(CONFIG_KSU) += kernelsu/" >> drivers/Makefile
 fi
 
 echo "[*] Integrating SUSFS (Super User Screen File System) support hooks..."
-# Ensure fs/Makefile includes susfs if patch is applied
 if [ -f "fs/susfs.c" ] && ! grep -q "susfs.o" fs/Makefile; then
     echo "obj-y += susfs.o" >> fs/Makefile
 fi
