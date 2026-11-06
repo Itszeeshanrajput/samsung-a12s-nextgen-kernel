@@ -1,0 +1,219 @@
+name: NextGen Kernel CI - Samsung Galaxy A12 Nacho (SM-A127F)
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      enable_ksu:
+        description: 'Integrate KernelSU-Next / SUSFS'
+        required: true
+        type: boolean
+        default: true
+      clang_version:
+        description: 'AOSP Clang Version'
+        required: true
+        type: choice
+        options:
+          - 'clang-r383902b (Android 11/12 stable)'
+          - 'clang-r416183b (Android 12L/13 stable)'
+          - 'clang-r450784d (Android 13/14 modern)'
+        default: 'clang-r383902b (Android 11/12 stable)'
+      clean_build:
+        description: 'Perform make clean before build'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-kernel:
+    name: Build NextGen Kernel (a12s / Exynos 850)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      - name: Optimize Runner Disk Space
+        run: |
+          echo "==> Freeing disk space on runner..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex git \
+            libelf-dev libssl-dev libncurses5-dev lzop python3 \
+            zip libxml2-utils zlib1g-dev
+
+      - name: Setup Compiler Toolchains (AOSP Clang & GCC64)
+        run: |
+          mkdir -p toolchain
+          cd toolchain
+
+          CLANG_TAG="android12-release"
+          CLANG_BIN="clang-r383902b"
+          if [[ "${{ github.event.inputs.clang_version }}" == *"r416183b"* ]]; then
+            CLANG_TAG="android12L-release"
+            CLANG_BIN="clang-r416183b"
+          elif [[ "${{ github.event.inputs.clang_version }}" == *"r450784d"* ]]; then
+            CLANG_TAG="android13-release"
+            CLANG_BIN="clang-r450784d"
+          fi
+
+          echo "==> Downloading AOSP Clang ($CLANG_BIN)..."
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+/refs/heads/${CLANG_TAG}/${CLANG_BIN} clang
+
+          echo "==> Downloading AOSP GCC 4.9 (64-bit cross-compiler)..."
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc64
+
+          echo "==> Toolchains configured successfully."
+
+      - name: Setup Kernel Source Tree
+        run: |
+          # If repository doesn't have kernel source at root, clone verified Exynos 850 source
+          if [ ! -f "Makefile" ] && [ ! -d "arch/arm64" ]; then
+            echo "==> Cloning upstream A12s / Exynos 850 kernel source..."
+            git clone --depth=1 https://github.com/ametoxg/a12s_kernel.git -b master kernel_src
+            shopt -s dotglob
+            mv kernel_src/* .
+            rm -rf kernel_src
+          fi
+
+      - name: Integrate KernelSU-Next & Defconfig Optimizations
+        run: |
+          chmod +x scripts/*.sh || true
+
+          if [ "${{ github.event.inputs.enable_ksu }}" = "true" ] || [ -z "${{ github.event.inputs.enable_ksu }}" ]; then
+            echo "==> Ingesting KernelSU-Next & SUSFS..."
+            bash scripts/setup_ksu_susfs.sh .
+          fi
+
+          echo "==> Running Defconfig Optimizer..."
+          # Locate universal3830 or a12s defconfig
+          DEFCONFIG=$(find arch/arm64/configs -name "*universal3830*" -o -name "*a12s*" | head -n 1)
+          if [ -n "$DEFCONFIG" ]; then
+            bash scripts/defconfig_optimizer.sh "$DEFCONFIG"
+          else
+            echo "Using default arch/arm64/configs/universal3830_defconfig"
+            bash scripts/defconfig_optimizer.sh arch/arm64/configs/universal3830_defconfig
+          fi
+
+      - name: Compile Kernel
+        run: |
+          export ARCH=arm64
+          export SUBARCH=arm64
+
+          CLANG_DIR="$GITHUB_WORKSPACE/toolchain/clang"
+          GCC64_DIR="$GITHUB_WORKSPACE/toolchain/gcc64"
+
+          export PATH="$CLANG_DIR/bin:$GCC64_DIR/bin:$PATH"
+          export CROSS_COMPILE=aarch64-linux-android-
+          export CC=clang
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+
+          # Defconfig selection
+          DEFCONFIG_NAME="universal3830_defconfig"
+          if [ -f "arch/arm64/configs/exynos850-a12s_defconfig" ]; then
+            DEFCONFIG_NAME="exynos850-a12s_defconfig"
+          fi
+
+          echo "==> Target Defconfig: $DEFCONFIG_NAME"
+          make O=out $DEFCONFIG_NAME
+
+          if [ "${{ github.event.inputs.clean_build }}" = "true" ]; then
+            make O=out clean
+          fi
+
+          echo "==> Starting parallel compilation with $(nproc) cores..."
+          make -j$(nproc --all) O=out \
+            CC=clang \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CLANG_TRIPLE=aarch64-linux-gnu-
+
+          if [ -f "out/arch/arm64/boot/Image" ]; then
+            echo "==> Compilation Successful: Image found."
+          else
+            echo "==> Compilation failed: Image binary not found!"
+            exit 1
+          fi
+
+      - name: Package with AnyKernel3
+        run: |
+          echo "==> Preparing AnyKernel3 flashable packaging..."
+          if [ ! -d "anykernel3_repo" ]; then
+            git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git anykernel3_repo
+          fi
+
+          # Copy custom AnyKernel configuration
+          cp anykernel3/anykernel.sh anykernel3_repo/anykernel.sh 2>/dev/null || true
+
+          # Copy compiled kernel image
+          cp out/arch/arm64/boot/Image anykernel3_repo/Image
+
+          # Copy DTB files if present
+          find out/arch/arm64/boot/dts -name "*.dtb" -exec cp {} anykernel3_repo/ \; 2>/dev/null || true
+
+          BUILD_DATE=$(date +'%Y%m%d_%H%M')
+          ZIP_NAME="NextGen-Kernel-A127F-${BUILD_DATE}.zip"
+
+          cd anykernel3_repo
+          zip -r9 "../$ZIP_NAME" * -x .git README.md
+
+          cd ..
+          sha256sum "$ZIP_NAME" > "${ZIP_NAME}.sha256"
+          md5sum "$ZIP_NAME" > "${ZIP_NAME}.md5"
+
+          echo "ZIP_PATH=$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: |
+            ${{ env.ZIP_PATH }}
+            ${{ env.ZIP_PATH }}.sha256
+            ${{ env.ZIP_PATH }}.md5
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: NextGen Kernel ${{ env.ZIP_NAME }}
+          tag_name: ${{ github.ref_name || format('build-{0}', github.run_number) }}
+          draft: false
+          prerelease: false
+          body: |
+            ## NextGen Kernel for Samsung Galaxy A12 Nacho (SM-A127F / a12s)
+            - **Target Chipset:** Exynos 850 (universal3830)
+            - **Compiler:** ${{ github.event.inputs.clang_version || 'AOSP Clang' }} + LTO
+            - **Root Engine:** KernelSU-Next / SUSFS
+            - **Networking:** WireGuard In-Kernel + TCP BBR
+            - **Memory:** ZRAM with ZSTD compression
+            - **Performance:** Samsung Knox DEFEX / TIMA latency overhead purged
+            
+            ### Verification Checksums
+            Verify file integrity before flashing in TWRP:
+            - **SHA256:** Check `.sha256` attachment
+            - **MD5:** Check `.md5` attachment
+          files: |
+            ${{ env.ZIP_PATH }}
+            ${{ env.ZIP_PATH }}.sha256
+            ${{ env.ZIP_PATH }}.md5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
