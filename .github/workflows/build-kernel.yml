@@ -82,8 +82,8 @@ jobs:
           ln -sfn "$GITHUB_WORKSPACE/toolchain/clang" kernel_src/toolchain/clang/host/linux-x86/clang-r353983c
           
           # Neutralize hardcoded Makefile paths to allow using our modern Clang
-          sed -i 's|^CC\s*=.*clang-r353983c.*|CC ?= clang|' kernel_src/Makefile || true
-          sed -i 's|^CLANG_TRIPLE\s*?=.*clang-r353983c.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
+          sed -i -E 's|^CC[[:space:]]*=.*clang-r353983c.*|CC ?= clang|' kernel_src/Makefile || true
+          sed -i -E 's|^CLANG_TRIPLE[[:space:]]*\?=.*clang-r353983c.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
 
       - name: Integrate KernelSU-Next & Defconfig Optimizations
         run: |
