@@ -86,9 +86,7 @@ jobs:
           # Neutralize hardcoded Makefile paths to allow using our modern Clang
           sed -i -E 's|^CC[[:space:]]*=.*|CC ?= clang|' kernel_src/Makefile || true
           sed -i -E 's|^CLANG_TRIPLE[[:space:]]*\?=.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
-          sed -i 's/-Werror//g' kernel_src/Makefile || true
-          sed -i 's/-Werror//g' kernel_src/arch/arm64/Makefile 2>/dev/null || true
-          sed -i '/KBUILD_CFLAGS   :=/a KBUILD_CFLAGS += -Wno-gnu-variable-sized-type-not-at-end -Wno-error' kernel_src/Makefile || true
+          echo "KBUILD_CFLAGS += -Wno-gnu-variable-sized-type-not-at-end -Wno-error" >> kernel_src/Makefile
 
       - name: Integrate NextGen v2.0 Features & Defconfig Optimizations
         run: |
