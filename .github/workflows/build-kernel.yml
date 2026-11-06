@@ -72,13 +72,9 @@ jobs:
 
       - name: Setup Kernel Source Tree
         run: |
-          # If repository doesn't have kernel source at root, clone verified Exynos 850 source
-          if [ ! -f "Makefile" ] && [ ! -d "arch/arm64" ]; then
+          if [ ! -d "kernel_src" ]; then
             echo "==> Cloning upstream A12s / Exynos 850 kernel source..."
             git clone --depth=1 https://github.com/ametoxg/a12s_kernel.git -b main kernel_src
-            shopt -s dotglob
-            mv kernel_src/* .
-            rm -rf kernel_src
           fi
 
       - name: Integrate KernelSU-Next & Defconfig Optimizations
@@ -87,21 +83,21 @@ jobs:
 
           if [ "${{ github.event.inputs.enable_ksu }}" = "true" ] || [ -z "${{ github.event.inputs.enable_ksu }}" ]; then
             echo "==> Ingesting KernelSU-Next & SUSFS..."
-            bash scripts/setup_ksu_susfs.sh .
+            bash scripts/setup_ksu_susfs.sh kernel_src
           fi
 
           echo "==> Running Defconfig Optimizer..."
-          # Locate universal3830 or a12s defconfig
-          DEFCONFIG=$(find arch/arm64/configs -name "*universal3830*" -o -name "*a12s*" | head -n 1)
+          DEFCONFIG=$(find kernel_src/arch/arm64/configs -name "*universal3830*" -o -name "*a12s*" | head -n 1)
           if [ -n "$DEFCONFIG" ]; then
             bash scripts/defconfig_optimizer.sh "$DEFCONFIG"
           else
-            echo "Using default arch/arm64/configs/universal3830_defconfig"
-            bash scripts/defconfig_optimizer.sh arch/arm64/configs/universal3830_defconfig
+            echo "Using default kernel_src/arch/arm64/configs/universal3830_defconfig"
+            bash scripts/defconfig_optimizer.sh kernel_src/arch/arm64/configs/universal3830_defconfig
           fi
 
       - name: Compile Kernel
         run: |
+          cd kernel_src
           export ARCH=arm64
           export SUBARCH=arm64
 
@@ -159,10 +155,10 @@ jobs:
           cp anykernel3/anykernel.sh anykernel3_repo/anykernel.sh 2>/dev/null || true
 
           # Copy compiled kernel image
-          cp out/arch/arm64/boot/Image anykernel3_repo/Image
+          cp kernel_src/out/arch/arm64/boot/Image anykernel3_repo/Image
 
           # Copy DTB files if present
-          find out/arch/arm64/boot/dts -name "*.dtb" -exec cp {} anykernel3_repo/ \; 2>/dev/null || true
+          find kernel_src/out/arch/arm64/boot/dts -name "*.dtb" -exec cp {} anykernel3_repo/ \; 2>/dev/null || true
 
           BUILD_DATE=$(date +'%Y%m%d_%H%M')
           ZIP_NAME="NextGen-Kernel-A127F-${BUILD_DATE}.zip"
