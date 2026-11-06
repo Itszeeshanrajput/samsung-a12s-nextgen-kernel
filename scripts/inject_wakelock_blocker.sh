@@ -11,11 +11,10 @@ cd "$KERNEL_DIR"
 
 echo "[*] Injecting Boeffla Wakelock Blocker into Exynos 850 power management..."
 
-# Ensure sysfs interface exists for wakelock blocking
-WAKELOCK_SYSFS_DIR="drivers/power/supply"
-mkdir -p "$WAKELOCK_SYSFS_DIR"
+# Ensure target include directory exists
+mkdir -p include/linux
 
-cat << 'EOF' > "$KERNEL_DIR/include/linux/boeffla_wakelock.h"
+cat << 'EOF' > include/linux/boeffla_wakelock.h
 #ifndef _LINUX_BOEFFLA_WAKELOCK_H
 #define _LINUX_BOEFFLA_WAKELOCK_H
 
@@ -45,4 +44,4 @@ static inline bool is_wakelock_blocked(const char *name) {
 #endif /* _LINUX_BOEFFLA_WAKELOCK_H */
 EOF
 
-echo "[✓] Boeffla Wakelock Blocker header created successfully."
+echo "[✓] Boeffla Wakelock Blocker header created successfully at include/linux/boeffla_wakelock.h."
