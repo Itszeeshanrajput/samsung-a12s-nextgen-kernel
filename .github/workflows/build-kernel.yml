@@ -75,7 +75,7 @@ jobs:
           # If repository doesn't have kernel source at root, clone verified Exynos 850 source
           if [ ! -f "Makefile" ] && [ ! -d "arch/arm64" ]; then
             echo "==> Cloning upstream A12s / Exynos 850 kernel source..."
-            git clone --depth=1 https://github.com/ametoxg/a12s_kernel.git -b master kernel_src
+            git clone --depth=1 https://github.com/ametoxg/a12s_kernel.git -b main kernel_src
             shopt -s dotglob
             mv kernel_src/* .
             rm -rf kernel_src
