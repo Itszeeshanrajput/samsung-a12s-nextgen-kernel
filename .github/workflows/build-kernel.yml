@@ -86,6 +86,9 @@ jobs:
           # Neutralize hardcoded Makefile paths to allow using our modern Clang
           sed -i -E 's|^CC[[:space:]]*=.*|CC ?= clang|' kernel_src/Makefile || true
           sed -i -E 's|^CLANG_TRIPLE[[:space:]]*\?=.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
+          sed -i 's/-Werror//g' kernel_src/Makefile || true
+          sed -i 's/-Werror//g' kernel_src/arch/arm64/Makefile 2>/dev/null || true
+          sed -i '/KBUILD_CFLAGS   :=/a KBUILD_CFLAGS += -Wno-gnu-variable-sized-type-not-at-end -Wno-error' kernel_src/Makefile || true
 
       - name: Integrate NextGen v2.0 Features & Defconfig Optimizations
         run: |
@@ -127,6 +130,7 @@ jobs:
           export SUBARCH=arm64
           export PLATFORM_VERSION=13
           export ANDROID_MAJOR_VERSION=t
+          export KCFLAGS="-Wno-gnu-variable-sized-type-not-at-end -Wno-error"
 
           CLANG_DIR="$GITHUB_WORKSPACE/toolchain/clang"
 
@@ -158,7 +162,8 @@ jobs:
             NM=llvm-nm \
             OBJCOPY=llvm-objcopy \
             OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip
+            STRIP=llvm-strip \
+            KCFLAGS="-Wno-gnu-variable-sized-type-not-at-end -Wno-error"
 
           if [ -f "out/arch/arm64/boot/Image" ]; then
             echo "==> Compilation Successful: Image found."
