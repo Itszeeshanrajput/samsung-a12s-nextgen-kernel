@@ -10,28 +10,25 @@ cd "$KERNEL_DIR"
 
 echo "[*] Setting up KernelSU-Next / KernelSU in $KERNEL_DIR..."
 
-# In ametoxg/a12s_kernel, drivers/kernelsu is a symlink pointing to ../KernelSU
-if [ -d "KernelSU" ]; then
-    echo "[*] KernelSU directory already present."
-else
-    echo "[+] Cloning KernelSU-Next at repository root..."
-    if ! git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git -b next KernelSU 2>/dev/null; then
-        echo "[!] Fallback: Cloning upstream KernelSU..."
-        git clone --depth=1 https://github.com/tiann/KernelSU.git KernelSU
-    fi
+# Clean up broken symlinks if any
+rm -rf drivers/kernelsu KernelSU 2>/dev/null || true
+
+echo "[+] Cloning KernelSU-Next..."
+if ! git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git -b next KernelSU 2>/dev/null; then
+    echo "[!] Fallback: Cloning upstream KernelSU..."
+    git clone --depth=1 https://github.com/tiann/KernelSU.git KernelSU
 fi
 
-# Ensure drivers/kernelsu symlink points to KernelSU
-rm -rf drivers/kernelsu 2>/dev/null || true
-ln -sfn ../KernelSU drivers/kernelsu
+# Physically copy kernel/ contents directly into drivers/kernelsu
+mkdir -p drivers/kernelsu
+cp -r KernelSU/kernel/* drivers/kernelsu/
 
 # Verify Kconfig exists
 if [ -f "drivers/kernelsu/Kconfig" ]; then
-    echo "[✓] drivers/kernelsu/Kconfig confirmed accessible."
+    echo "[✓] drivers/kernelsu/Kconfig successfully placed."
 else
-    echo "[!] Warning: drivers/kernelsu/Kconfig not found, copying directly..."
-    mkdir -p drivers/kernelsu
-    cp -r KernelSU/* drivers/kernelsu/
+    echo "[!] Error: drivers/kernelsu/Kconfig could not be created!"
+    exit 1
 fi
 
 # Ensure drivers/Makefile includes kernelsu

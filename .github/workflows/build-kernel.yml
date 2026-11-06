@@ -80,10 +80,12 @@ jobs:
           echo "==> Linking toolchain and patching hardcoded compiler paths..."
           mkdir -p kernel_src/toolchain/clang/host/linux-x86
           ln -sfn "$GITHUB_WORKSPACE/toolchain/clang" kernel_src/toolchain/clang/host/linux-x86/clang-r353983c
+          mkdir -p kernel_src/out
+          ln -sfn "$GITHUB_WORKSPACE/toolchain" kernel_src/out/toolchain 2>/dev/null || true
           
           # Neutralize hardcoded Makefile paths to allow using our modern Clang
-          sed -i -E 's|^CC[[:space:]]*=.*clang-r353983c.*|CC ?= clang|' kernel_src/Makefile || true
-          sed -i -E 's|^CLANG_TRIPLE[[:space:]]*\?=.*clang-r353983c.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
+          sed -i -E 's|^CC[[:space:]]*=.*|CC ?= clang|' kernel_src/Makefile || true
+          sed -i -E 's|^CLANG_TRIPLE[[:space:]]*\?=.*|CLANG_TRIPLE ?= aarch64-linux-gnu-|' kernel_src/Makefile || true
 
       - name: Integrate KernelSU-Next & Defconfig Optimizations
         run: |
@@ -128,7 +130,7 @@ jobs:
           fi
 
           echo "==> Target Defconfig: $DEFCONFIG_NAME"
-          make O=out $DEFCONFIG_NAME
+          make O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- $DEFCONFIG_NAME
 
           if [ "${{ github.event.inputs.clean_build }}" = "true" ]; then
             make O=out clean
