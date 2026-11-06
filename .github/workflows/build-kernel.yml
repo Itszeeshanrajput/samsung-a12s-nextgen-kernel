@@ -68,6 +68,10 @@ jobs:
           echo "==> Downloading Proton Clang Toolchain (Clang + AArch64 binutils)..."
           git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang
 
+          echo "==> Configuring target binutils for ARM64 assembly..."
+          ln -sf aarch64-linux-gnu-as clang/bin/as
+          ln -sf aarch64-linux-gnu-ld clang/bin/ld
+
           echo "==> Toolchains configured successfully."
 
       - name: Setup Kernel Source Tree
@@ -135,6 +139,9 @@ jobs:
           export PATH="$CLANG_DIR/bin:$PATH"
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export AS=aarch64-linux-gnu-as
+          export LD=aarch64-linux-gnu-ld
           export CC=clang
           export AR=llvm-ar
           export NM=llvm-nm
@@ -145,7 +152,7 @@ jobs:
           # Defconfig selection
           DEFCONFIG_NAME=$(ls arch/arm64/configs/*defconfig 2>/dev/null | head -n 1 | xargs basename)
           echo "==> Target Defconfig: $DEFCONFIG_NAME"
-          make O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- $DEFCONFIG_NAME
+          make O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- AS=aarch64-linux-gnu-as $DEFCONFIG_NAME
 
           if [ "${{ github.event.inputs.clean_build }}" = "true" ]; then
             make O=out clean
@@ -154,8 +161,11 @@ jobs:
           echo "==> Starting parallel compilation with $(nproc) cores..."
           make -j$(nproc --all) O=out \
             CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            AS=aarch64-linux-gnu-as \
+            LD=aarch64-linux-gnu-ld \
             AR=llvm-ar \
             NM=llvm-nm \
             OBJCOPY=llvm-objcopy \
