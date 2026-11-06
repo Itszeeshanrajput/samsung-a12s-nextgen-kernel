@@ -11,7 +11,7 @@ cd "$KERNEL_DIR"
 echo "[*] Setting up KernelSU-Next / KernelSU in $KERNEL_DIR..."
 
 # Clean up broken symlinks if any
-rm -rf drivers/kernelsu KernelSU 2>/dev/null || true
+rm -rf drivers/kernelsu KernelSU fs/nomount nomount 2>/dev/null || true
 
 echo "[+] Cloning KernelSU-Next..."
 if ! git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git -b next KernelSU 2>/dev/null; then
@@ -22,6 +22,18 @@ fi
 # Physically copy kernel/ contents directly into drivers/kernelsu
 mkdir -p drivers/kernelsu
 cp -r KernelSU/kernel/* drivers/kernelsu/
+
+# Setup NoMount framework (expected by fs/Kconfig)
+echo "[+] Setting up NoMount in $KERNEL_DIR..."
+if git clone --depth=1 https://github.com/ametoxg/nomount.git nomount_tmp 2>/dev/null; then
+    mkdir -p fs/nomount
+    cp -r nomount_tmp/kernel/src/* fs/nomount/
+    rm -rf nomount_tmp
+    echo "[✓] fs/nomount files placed physically."
+else
+    mkdir -p fs/nomount
+    touch fs/nomount/Kconfig fs/nomount/Makefile
+fi
 
 # Verify Kconfig exists
 if [ -f "drivers/kernelsu/Kconfig" ]; then

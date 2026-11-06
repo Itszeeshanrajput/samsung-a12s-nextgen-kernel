@@ -97,12 +97,9 @@ jobs:
           fi
 
           echo "==> Running Defconfig Optimizer..."
-          DEFCONFIG=$(find kernel_src/arch/arm64/configs -name "*universal3830*" -o -name "*a12s*" | head -n 1)
+          DEFCONFIG=$(ls kernel_src/arch/arm64/configs/*defconfig 2>/dev/null | head -n 1)
           if [ -n "$DEFCONFIG" ]; then
             bash scripts/defconfig_optimizer.sh "$DEFCONFIG"
-          else
-            echo "Using default kernel_src/arch/arm64/configs/universal3830_defconfig"
-            bash scripts/defconfig_optimizer.sh kernel_src/arch/arm64/configs/universal3830_defconfig
           fi
 
       - name: Compile Kernel
@@ -110,6 +107,8 @@ jobs:
           cd kernel_src
           export ARCH=arm64
           export SUBARCH=arm64
+          export PLATFORM_VERSION=13
+          export ANDROID_MAJOR_VERSION=t
 
           CLANG_DIR="$GITHUB_WORKSPACE/toolchain/clang"
 
@@ -124,11 +123,7 @@ jobs:
           export STRIP=llvm-strip
 
           # Defconfig selection
-          DEFCONFIG_NAME="universal3830_defconfig"
-          if [ -f "arch/arm64/configs/exynos850-a12s_defconfig" ]; then
-            DEFCONFIG_NAME="exynos850-a12s_defconfig"
-          fi
-
+          DEFCONFIG_NAME=$(ls arch/arm64/configs/*defconfig 2>/dev/null | head -n 1 | xargs basename)
           echo "==> Target Defconfig: $DEFCONFIG_NAME"
           make O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- $DEFCONFIG_NAME
 
@@ -193,11 +188,10 @@ jobs:
             ${{ env.ZIP_PATH }}.md5
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           name: NextGen Kernel ${{ env.ZIP_NAME }}
-          tag_name: ${{ github.ref_name || format('build-{0}', github.run_number) }}
+          tag_name: kernel-v1.0-${{ github.run_number }}
           draft: false
           prerelease: false
           body: |
