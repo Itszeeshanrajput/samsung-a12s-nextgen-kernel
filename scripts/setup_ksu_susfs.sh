@@ -13,15 +13,25 @@ echo "[*] Setting up KernelSU-Next / KernelSU in $KERNEL_DIR..."
 # Clean up broken symlinks if any
 rm -rf drivers/kernelsu KernelSU fs/nomount nomount 2>/dev/null || true
 
-echo "[+] Cloning KernelSU-Next..."
-if ! git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git -b next KernelSU 2>/dev/null; then
+echo "[+] Cloning KernelSU-Next (legacy / 4.19 compatible)..."
+if ! git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git -b legacy KernelSU 2>/dev/null; then
     echo "[!] Fallback: Cloning upstream KernelSU..."
     git clone --depth=1 https://github.com/tiann/KernelSU.git KernelSU
 fi
 
-# Physically copy kernel/ contents directly into drivers/kernelsu
+# Physically copy kernel/ and uapi/ contents directly into drivers/kernelsu
 mkdir -p drivers/kernelsu
 cp -r KernelSU/kernel/* drivers/kernelsu/
+
+# Copy UAPI headers to all required search locations
+if [ -d "KernelSU/uapi" ]; then
+    cp -r KernelSU/uapi drivers/kernelsu/
+    mkdir -p drivers/kernelsu/include
+    cp -r KernelSU/uapi drivers/kernelsu/include/
+    mkdir -p include/uapi/linux
+    cp -r KernelSU/uapi/* include/uapi/linux/ 2>/dev/null || true
+    echo "[✓] KernelSU UAPI headers placed successfully."
+fi
 
 # Setup NoMount framework (expected by fs/Kconfig)
 echo "[+] Setting up NoMount in $KERNEL_DIR..."
