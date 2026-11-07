@@ -37,15 +37,40 @@ disable_config() {
     fi
 }
 
-echo "[+] 1. Disabling Samsung Knox / DEFEX / RKP latency bloat..."
+echo "[+] 1. Disabling Samsung Knox / DEFEX / RKP / FIVE / PROCA bloat..."
 disable_config "CONFIG_SECURITY_DEFEX"
 disable_config "CONFIG_KNOX_KAP"
 disable_config "CONFIG_TIMA"
 disable_config "CONFIG_RKP_KDP"
 disable_config "CONFIG_SAMSUNG_FREECESS"
-disable_config "CONFIG_SEC_DEBUG"
 disable_config "CONFIG_SEC_RESTRICT_ROOTING"
 disable_config "CONFIG_SEC_RESTRICT_SETUID"
+disable_config "CONFIG_FIVE"
+disable_config "CONFIG_FIVE_GKI_10"
+disable_config "CONFIG_FIVE_GKI_20"
+disable_config "CONFIG_FIVE_DEBUG"
+disable_config "CONFIG_PROCA"
+disable_config "CONFIG_PROCA_S_OS"
+disable_config "CONFIG_SECURITY_DSMS"
+
+# Apply surgical fixes for Samsung header quirks
+KERNEL_ROOT="."
+if [ -d "kernel_src" ]; then
+    KERNEL_ROOT="kernel_src"
+fi
+
+if [ -f "$KERNEL_ROOT/include/linux/sec_debug.h" ]; then
+    sed -i 's/#define secdbg_exin_get_unfz(a).*/#define secdbg_exin_get_unfz() ""/' "$KERNEL_ROOT/include/linux/sec_debug.h"
+    echo "[✓] Patched $KERNEL_ROOT/include/linux/sec_debug.h"
+fi
+if [ -f "$KERNEL_ROOT/security/samsung/five/five_cache.h" ]; then
+    sed -i 's|"security/integrity/integrity.h"|"../../integrity/integrity.h"|' "$KERNEL_ROOT/security/samsung/five/five_cache.h"
+    echo "[✓] Patched $KERNEL_ROOT/security/samsung/five/five_cache.h"
+fi
+if [ -f "$KERNEL_ROOT/security/samsung/five/five_crypto.c" ]; then
+    sed -i 's|"security/integrity/integrity.h"|"../../integrity/integrity.h"|' "$KERNEL_ROOT/security/samsung/five/five_crypto.c"
+    echo "[✓] Patched $KERNEL_ROOT/security/samsung/five/five_crypto.c"
+fi
 
 echo "[+] 2. Enabling Advanced ZRAM with ZSTD Memory Compression..."
 set_config "CONFIG_ZRAM" "y"

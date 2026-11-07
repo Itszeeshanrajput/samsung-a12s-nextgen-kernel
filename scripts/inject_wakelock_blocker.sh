@@ -33,8 +33,9 @@ static const char *const blocked_wakelocks[] = {
 };
 
 static inline bool is_wakelock_blocked(const char *name) {
+    int i;
     if (!name) return false;
-    for (int i = 0; blocked_wakelocks[i] != NULL; i++) {
+    for (i = 0; blocked_wakelocks[i] != NULL; i++) {
         if (strcmp(name, blocked_wakelocks[i]) == 0)
             return true;
     }

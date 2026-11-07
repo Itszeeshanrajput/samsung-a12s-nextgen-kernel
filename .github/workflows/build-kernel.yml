@@ -196,7 +196,8 @@ jobs:
           body: |
             ## NextGen v2.0 Flagship Custom Kernel for Samsung Galaxy A12 Nacho (SM-A127F / a12s)
             - **Target Platform:** Samsung Exynos 850 (S5E3830) pure ARM64
-            - **Compiler:** Proton Clang (LLVM 13+ with integrated AArch64/ARM32 binutils)
+            - **Compiler:** Official Google AOSP Clang-r353983c (Clang 9.0.3) with target GNU AArch64 binutils
+            - **Root & Kernel Hooks:** KernelSU-Next v1.0.5 + NoMount Stealth Framework
             
             ### Integrated v2.0 Feature Matrix:
             1. **KCAL Advanced Display Calibration:** Ported in-kernel RGB, contrast, and saturation driver (boosts LCD to rich AMOLED-like vibrancy).
