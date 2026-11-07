@@ -39,6 +39,21 @@ if [ -f "drivers/kernelsu/compat/kernel_compat.h" ]; then
     echo "[✓] Patched strscpy_pad compatibility in drivers/kernelsu/compat/kernel_compat.h"
 fi
 
+# Fix subobject initialization warning-as-error in pt_regs
+if [ -f "drivers/kernelsu/include/util.h" ]; then
+    sed -i 's/struct pt_regs __ksu_regs = { 0 };/struct pt_regs __ksu_regs = {};/' drivers/kernelsu/include/util.h
+    echo "[✓] Patched pt_regs initializer in drivers/kernelsu/include/util.h"
+fi
+
+# Add Clang tolerance flags to Kbuild
+if [ -f "drivers/kernelsu/Kbuild" ]; then
+    echo "ccflags-y += -Wno-missing-braces -Wno-error" >> drivers/kernelsu/Kbuild
+    echo "[✓] Appended tolerance flags to drivers/kernelsu/Kbuild"
+fi
+if [ -f "drivers/kernelsu/Makefile" ]; then
+    echo "ccflags-y += -Wno-missing-braces -Wno-error" >> drivers/kernelsu/Makefile
+fi
+
 # Setup NoMount framework (expected by fs/Kconfig)
 echo "[+] Setting up NoMount in $KERNEL_DIR..."
 if git clone --depth=1 https://github.com/ametoxg/nomount.git nomount_tmp 2>/dev/null; then
