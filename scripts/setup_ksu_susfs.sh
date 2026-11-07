@@ -33,6 +33,12 @@ if [ -d "KernelSU/uapi" ]; then
     echo "[✓] KernelSU UAPI headers placed successfully."
 fi
 
+# Fix Linux 4.19 strscpy_pad backport disparity in kernel_compat.h
+if [ -f "drivers/kernelsu/compat/kernel_compat.h" ]; then
+    sed -i 's/return strscpy_pad(dest, src, count);/ssize_t res = strscpy(dest, src, count); if (res >= 0 \&\& (size_t)res < count) { memset(dest + res, 0, count - res); } return res;/' drivers/kernelsu/compat/kernel_compat.h
+    echo "[✓] Patched strscpy_pad compatibility in drivers/kernelsu/compat/kernel_compat.h"
+fi
+
 # Setup NoMount framework (expected by fs/Kconfig)
 echo "[+] Setting up NoMount in $KERNEL_DIR..."
 if git clone --depth=1 https://github.com/ametoxg/nomount.git nomount_tmp 2>/dev/null; then
