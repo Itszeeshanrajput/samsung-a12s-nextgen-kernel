@@ -162,8 +162,8 @@ jobs:
           # Copy compiled kernel image
           cp kernel_src/out/arch/arm64/boot/Image anykernel3_repo/Image
 
-          # Copy DTB files if present
-          find kernel_src/out/arch/arm64/boot/dts -name "*.dtb" -exec cp {} anykernel3_repo/ \; 2>/dev/null || true
+          # NOTE: We deliberately do NOT bundle generic compiled DTB into AnyKernel3.
+          # Preserving the device's native stock DTB prevents Samsung Exynos BL3 'dt load failed' panel errors.
 
           BUILD_DATE=$(date +'%Y%m%d_%H%M')
           ZIP_NAME="NextGen-Kernel-A127F-${BUILD_DATE}.zip"

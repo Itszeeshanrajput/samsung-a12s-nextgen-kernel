@@ -2,7 +2,7 @@
 ### Target SoC: Samsung Exynos 850 (universal3830)
 
 properties() { '
-kernel.string=NextGen Kernel for Samsung Galaxy A12 Nacho (SM-A127F)
+kernel.string=NextGen Kernel v2.0 for Samsung Galaxy A12 Nacho (SM-A127F)
 do.devicecheck=1
 do.modules=0
 do.systemless=1
@@ -13,14 +13,18 @@ device.name2=SM-A127F
 device.name3=a12sxx
 device.name4=SM-A127M
 device.name5=SM-A127F/DS
-supported.versions=11, 12, 12.1, 13, 14
+supported.versions=
 supported.patchlevels=
 '; }
 
 ### AnyKernel setup
-block=/dev/block/by-name/boot;
+BLOCK=/dev/block/by-name/boot;
+block=boot;
+IS_SLOT_DEVICE=0;
 is_slot_device=0;
+RAMDISK_COMPRESSION=auto;
 ramdisk_compression=auto;
+PATCH_VBMETA_FLAG=auto;
 patch_vbmeta_flag=auto;
 
 ## AnyKernel methods (DO NOT CHANGE)
@@ -30,8 +34,6 @@ patch_vbmeta_flag=auto;
 ## AnyKernel boot install
 split_boot;
 
-# Samsung KNOX & dm-verity bypass flags in cmdline if needed
-# remove_cmdline_param androidboot.selinux;
-
+# Preserve device's native Samsung DTB to prevent 'dt load failed' bootloader rejection
 flash_boot;
 ## end boot install
